@@ -4,19 +4,19 @@
 #ifndef MQL5_JSON_DOCUMENT_V10_H
 #define MQL5_JSON_DOCUMENT_V10_H
 
-#include <Object.mqh> // For CheckPointer
+#include <Object.mqh>
 
 #include "JsonCore.mqh"
 #include "JsonNode.mqh"
 #include "JsonStreamParser.mqh"
 #include "JsonParser.mqh"
 #include "JsonTypes.mqh"
+#include "JsonSerializer.mqh"
+#include "JsonUtils.mqh"
 
 namespace MQL5_Json
 {
-//+------------------------------------------------------------------+
-//|  HELPER FUNCTION IMPLEMENTATION (Required by JsonMerge)          |
-//+------------------------------------------------------------------+
+// ... (JsonMergeHelper function is unchanged, omitted for brevity)
 void JsonMergeHelper(JsonNode &target, const JsonNode &patch)
 {
    if (!patch.IsObject() || !target.IsObject()) return;
@@ -47,22 +47,32 @@ void JsonMergeHelper(JsonNode &target, const JsonNode &patch)
 }
 
 
-//+------------------------------------------------------------------+
-//|  CLASS DEFINITION                                                |
-//+------------------------------------------------------------------+
 class JsonDocument
 {
 private:
    Internal::CJsonDocument *m_impl;
    JsonDocument(const JsonDocument &other) {}
-   void operator=(const JsonDocument &other) {}
 
 public:
-   JsonDocument();
-   JsonDocument(Internal::CJsonDocument *impl);
-   JsonDocument(JsonDocument &other); // Move constructor
-   ~JsonDocument();
-   void operator=(JsonDocument &other); // Move assignment
+   JsonDocument() : m_impl(NULL) {}
+   JsonDocument(Internal::CJsonDocument *impl) : m_impl(impl) {}
+   JsonDocument(JsonDocument &other)
+   {
+      m_impl = other.m_impl;
+      other.m_impl = NULL;
+   }
+   ~JsonDocument()
+   {
+      if(CheckPointer(m_impl) == POINTER_DYNAMIC)
+         delete m_impl;
+   }
+   void operator=(JsonDocument &other)
+   {
+      if(GetPointer(this) == GetPointer(other)) return;
+      if(CheckPointer(m_impl) == POINTER_DYNAMIC) delete m_impl;
+      m_impl = other.m_impl;
+      other.m_impl = NULL;
+   }
 
    Internal::CJsonDocument* _GetImpl() const
    {
@@ -73,20 +83,70 @@ public:
       if(CheckPointer(m_impl) != 0) m_impl.m_root = new_root;
    }
 
-   bool       IsValid() const;
-   JsonNode   GetRoot() const;
-   JsonDocument Clone() const;
-   string     ToString(bool pretty=false, bool escape_non_ascii=false) const;
-   bool       SaveToFile(const string &path, bool pretty=true, bool escape=false, bool bom=true) const;
-   JsonNode   CreateObjectNode();
-   JsonNode   CreateArrayNode();
-   JsonNode   operator[](const string &key) const;
-   JsonNode   operator[](int index) const;
+   bool IsValid() const
+   {
+      return CheckPointer(m_impl) != 0 && CheckPointer(m_impl.m_root) != 0;
+   }
+   JsonNode GetRoot() const
+   {
+      return JsonNode(IsValid() ? m_impl.m_root : NULL);
+   }
+
+   JsonDocument Clone() const
+   {
+      if(!IsValid()) return JsonDocument(NULL);
+      Internal::CJsonDocument*d = new Internal::CJsonDocument();
+      if(!d) return JsonDocument(NULL);
+      d.m_root = m_impl.m_root.Clone(d);
+      if(!d.m_root)
+      {
+         delete d;
+         return JsonDocument(NULL);
+      }
+      return JsonDocument(d);
+   }
+
+   string ToString(bool pretty=false, bool escape_non_ascii=false) const
+   {
+      if(!IsValid()) return "";
+      Internal::CJsonSerializer s;
+      return s.Serialize(m_impl.m_root, pretty, escape_non_ascii);
+   }
+
+   //
+   bool SaveToFile(const string &path, bool pretty=true, bool escape=false, bool bom=false) const
+   {
+      if(!IsValid()) return false;
+      int h = FileOpen(path, FILE_WRITE|FILE_BIN|FILE_ANSI);
+      if(h < 0) return false;
+      string s = ToString(pretty, escape);
+      uchar y[];
+      Internal::JsonStringToUtf8Bytes(s, y, bom);
+      bool k = true;
+      if(ArraySize(y) > 0 && FileWriteArray(h, y) != (uint)ArraySize(y)) k = false;
+      FileClose(h);
+      return k;
+   }
+
+   JsonNode CreateObjectNode()
+   {
+      return JsonNode(IsValid() ? m_impl.CreateNode(JSON_OBJECT) : NULL);
+   }
+   JsonNode CreateArrayNode()
+   {
+      return JsonNode(IsValid() ? m_impl.CreateNode(JSON_ARRAY) : NULL);
+   }
+   JsonNode operator[](const string &key) const
+   {
+      return GetRoot().Get(key);
+   }
+   JsonNode operator[](int index) const
+   {
+      return GetRoot().At(index);
+   }
 };
 
-//+------------------------------------------------------------------+
-//|  STANDALONE FACTORY FUNCTION IMPLEMENTATIONS                     |
-//+------------------------------------------------------------------+
+//
 JsonDocument JsonParse(const string &text, JsonError &error, const JsonParseOptions &options)
 {
    error.Clear();
@@ -189,5 +249,7 @@ JsonDocument JsonMerge(const JsonDocument &target, const JsonDocument &patch)
    return result_doc;
 }
 
-} // End namespace MQL5_Json
+
+}
 #endif // MQL5_JSON_DOCUMENT_V10_H
+//+------------------------------------------------------------------+
