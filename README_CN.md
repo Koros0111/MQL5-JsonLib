@@ -1,265 +1,463 @@
-# MQL5 JSON Library (JsonLib) v10.0
+# MQL5-JsonLib: 专业级MQL5 JSON库
 
+![Version](https://img.shields.io/badge/version-11.0-blue.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Platform](https://img.shields.io/badge/platform-MetaTrader%205-orange.svg)
 
-一个功能强大、特性丰富的库，专为在MQL5环境中解析、操作和序列化JSON数据而设计。它提供了一套简单直观的文档对象模型(DOM) API，旨在让MQL5中的JSON处理体验媲美JavaScript、Python等现代编程语言。
+**MQL5-JsonLib** 是一个功能全面、性能卓越且高度健壮的JSON解决方案，专为 MQL5 语言设计。它提供了从简单的 DOM 解析、数据绑定到复杂的 SAX 流式处理和强大的 JSONPath 查询等一系列专业级功能，旨在为 MQL5 开发者提供一个完全现代化的数据交换与处理工具。
 
-本库能够胜任从简单的EA配置读取到复杂的跨系统实时数据交换等各种任务。
+无论您是需要对接 Web API 获取市场数据、管理复杂的 EA/指标配置，还是在不同系统间高效交换信息，JsonLib 都能提供一个稳定、高效且极其易用的接口。
 
-## ✨ 特性
+## 核心特性
 
--   **强大的解析与创建**:
-    -   从字符串或文件可靠地解析JSON (`JsonParse`, `JsonFromFile`)。
-    -   支持 **JSON5** 的部分特性，如注释和末尾逗号，增强兼容性。
-    -   使用简洁的API (`JsonNewObject`, `JsonNewArray`) 从零开始构建JSON。
--   **直观的数据操作**:
-    -   像JS对象或Python字典一样，通过键 (`node["key"]`) 和索引 (`node[0]`) 访问数据。
-    -   安全的类型转换 (`AsInt(defaultValue)`, `AsString(defaultValue)`)，防止程序因类型不匹配或路径不存在而崩溃。
-    -   自由地添加、更新或删除JSON中的元素 (`Set`, `Add`, `Remove`)。
--   **高级查询与处理**:
-    -   内置 **JSON Pointer** (`.Query()`) 和 **JSONPath** (`.SelectNodes()`) 查询引擎，轻松从复杂结构中提取数据。
-    -   提供 **流式解析器** (`JsonStreamParser`)，能以极低的内存占用处理GB级的超大JSON文件。
-    -   提供文档克隆 (`.Clone()`) 和深度合并 (`JsonMerge`) 等高级工具。
--   **安全与健壮**:
-    -   **自动内存管理** (RAII)，`JsonDocument` 管理所有节点生命周期，从根本上杜绝内存泄漏。
-    -   跨文档操作自动进行深度拷贝，防止悬挂指针和数据污染。
-    -   详尽的错误报告，包含行号、列号，便于快速定位问题。
+* ⚡️ **双引擎解析**:
+  * `ENGINE_HIGH_SPEED`: 针对标准 RFC 8259 格式优化的超高速解析器。
+  * `ENGINE_STANDARD`: 功能完整的流式解析器，支持注释、尾随逗号等非标准特性。
+  * `ENGINE_AUTO` (默认): 智能切换引擎，在确保兼容性的同时提供最佳性能。
+* 🌳 **完整的文档对象模型 (DOM) API**: 像操作普通 MQL5 对象一样，轻松加载、创建、访问和修改 JSON 文档。
+* 🌊 **高效的流式 (SAX) API**: 以极低的内存占用处理GB级别的超大 JSON 文件，是处理大数据流的理想选择。
+* 🔎 **强大的数据查询**:
+  * **JSONPath**: 使用类似 XPath 的语法，从复杂的 JSON 结构中轻松查询和提取数据。
+  * **JSON Pointer (RFC 6901)**: 提供轻量、快速的单点元素定位。
+* 💾 **无缝文件 I/O**: 直接从文件流高效解析 JSON，或将内存中的 JSON 文档以美观或紧凑的格式保存到文件。
+* 🔗 **强大的数据绑定 (`JsonMapper`)**: 实现 MQL5 自定义类与 JSON 节点之间的自动双向映射，极大提升代码的结构化和可维护性。
+* 🛠️ **高级文档操作**:
+  * **深度合并 (Deep Merge)**: 递归合并两个 JSON 对象，是聚合配置的利器。
+  * **RFC 7396 Patch**: 支持标准化的 JSON Patch 协议，用于对 JSON 文档进行精确的局部更新。
+* ⚠️ **健壮的错误处理**: 提供详尽的错误信息，包括行号、列号和上下文，帮助开发者快速定位并解决问题。
 
-## 📦 安装
+## 性能亮点
 
-1.  下载本仓库的源代码。
-2.  将 `Include/MQL5-Json` 文件夹完整复制到您的MQL5数据目录的 `\MQL5\Include\` 文件夹下。
-3.  在您的代码中，使用 `#include` 引入主头文件：
+本库经过严格的性能测试。在 MetaTrader 5 Build `5233` 环境下，针对不同大小的 JSON 文件，其吞吐能力表现卓越：
 
-    ```mql5
-    #include <MQL5-Json/JsonLib.mqh>
-    ```
+| 文件大小 (实际)   | JsonFromFile (流式) | JsonParse (标准内存) | JsonParse (高速内存) |
+|:----------- |:----------------- |:---------------- |:---------------- |
+| **7.6 KB**  | `23.49 MB/s`      | `30.93 MB/s`     | **`34.37 MB/s`** |
+| **62.5 KB** | `28.42 MB/s`      | `31.81 MB/s`     | **`35.57 MB/s`** |
+| **1.0 MB**  | `9.80 MB/s`       | `9.45 MB/s`      | **`9.91 MB/s`**  |
+| **15.4 MB** | `0.66 MB/s`       | `0.67 MB/s`      | **`0.68 MB/s`**  |
 
-## 🚀 快速上手
+> **结论**: 在处理<1MB的中小文件时，高速引擎性能优势明显。对于超大文件，流式解析 (`JsonFromFile`) 能在保证极低内存占用的同时提供稳定的高性能。
 
-下面是一个简单的示例，展示了如何解析字符串、访问数据、创建新JSON并将其序列化。
+## 安装指南
 
-mql5
-#include <MQL5-Json/JsonLib.mqh>
+1. 将 `JsonLib.mqh` 文件和 `Core` 文件夹完整复制到您的 MQL5 `Include` 目录下 (路径通常是 `MQL5/Include/`)。
+2. 在您的 EA、脚本或指标代码中，仅需包含主头文件即可开始使用：
+   
+   ```mql5
+   #include <JsonLib.mqh>
+   ```
+
+## 快速入门：5分钟掌握核心用法
+
+下面的示例将带您快速体验解析 JSON、读取数据、修改数据并打印的全过程。
+
+```mql5
+#include <JsonLib.mqh>
 
 void OnStart()
 {
-    string jsonText = "{ \"name\": \"John Doe\", \"age\": 30, \"isStudent\": false, \"courses\": [\"MQL5\", \"C++\"] }";
+    // 1. 假设这是从Web API获取的行情数据
+    string market_data_str = R"({
+      "symbol": "EURUSD",
+      "timestamp": 1672531200,
+      "bid": 1.0705,
+      "ask": 1.0708,
+      "tradeable": true,
+      "levels": [1.0700, 1.0800]
+    })";
 
-    // 1. 解析JSON字符串 (必须使用 MQL5_Json:: 命名空间前缀)
+    // 2. 解析JSON字符串
     MQL5_Json::JsonError error;
-    MQL5_Json::JsonParseOptions options;
-    MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(jsonText, error, options);
+    MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(market_data_str, error);
 
-    // 2. 解析后务必检查文档是否有效
-    if (!doc.IsValid())
+    // 3. 校验并访问数据
+    if(doc.IsValid())
     {
-        Print("解析JSON失败: ", error.ToString());
-        return;
+        MQL5_Json::JsonNode root = doc.GetRoot();
+
+        // 使用 [] 操作符和 As...() 方法安全地读取数据
+        string symbol = root["symbol"].AsString("N/A");
+        double spread = root["ask"].AsDouble() - root["bid"].AsDouble();
+
+        PrintFormat("Symbol: %s, Spread: %.5f", symbol, spread);
+
+        // 4. 修改数据
+        root.Set("tradeable", false); // 假设我们暂停交易该品种
+        root.SetObject("metadata").Set("source", "My EA"); // 添加新的子对象
+
+        // 5. 将修改后的文档转换为格式化的字符串并打印
+        Print("\n--- Modified JSON ---");
+        Print(doc.ToString(true));
     }
+    else
+    {
+        Print("JSON parsing failed: ", error.ToString());
+    }
+}
+```
 
-    // 3. 访问数据
+## 权威API指南
+
+---
+
+### **Part 1: DOM API 核心用法**
+
+#### **1.1 解析JSON**
+
+**示例 1: 从字符串解析 (支持非标准格式)**
+
+```mql5
+// 假设JSON来自一个允许注释的配置文件
+string text_with_comments = R"({
+    "strategy_id": "MA_Cross_v2", // 策略标识符
+    "magic_number": 654321,
+})";
+
+MQL5_Json::JsonError error;
+MQL5_Json::JsonParseOptions options;
+options.engine = MQL5_Json::ENGINE_STANDARD;     // 必须使用标准引擎以支持注释
+options.allow_comments = true;                  // 允许注释
+options.allow_trailing_commas = true;           // 同时允许尾随逗号
+
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(text_with_comments, error, options);
+Print("Magic Number: ", doc["magic_number"].AsInt());
+```
+
+**示例 2: 从文件高效解析 (推荐)**
+此方法内存效率极高，是读取配置或数据文件的最佳选择。
+
+```mql5
+string filename = "ea_settings.json";
+// (此处省略写入文件的代码...)
+
+MQL5_Json::JsonError error;
+MQL5_Json::JsonDocument config_doc = MQL5_Json::JsonFromFile(filename, error);
+
+if(config_doc.IsValid()) {
+    Print("Successfully loaded config from ", filename);
+}
+```
+
+---
+
+#### **1.2 创建全新的JSON文档**
+
+**示例: 构建一个完整的EA交易参数配置**
+
+```mql5
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonNewObject();
+MQL5_Json::JsonNode root = doc.GetRoot();
+
+root.Set("ea_name", "Pro RSI Trader");
+root.Set("version", 1.2);
+root.Set("enabled", true);
+
+// 添加一个包含基本参数的子对象
+MQL5_Json::JsonNode params = root.SetObject("parameters");
+params.Set("rsi_period", 14);
+params.Set("stop_loss_pips", 50);
+params.Set("take_profit_pips", 100);
+
+// 添加一个包含风险控制设置的子对象
+MQL5_Json::JsonNode risk = root.SetObject("risk_management");
+risk.Set("max_drawdown_percent", 20.0);
+risk.Set("lot_sizing_method", "fixed");
+risk.Set("fixed_lot_size", 0.02);
+
+// 添加一个允许交易的时间段数组
+MQL5_Json::JsonNode trading_sessions = root.SetArray("trading_sessions");
+trading_sessions.Add("London");
+trading_sessions.Add("New_York");
+
+Print(doc.ToString(true));
+```
+
+---
+
+#### **1.3 访问与读取数据**
+
+**示例: 解析一个包含多层嵌套的账户信息JSON**
+
+```mql5
+string account_info_str = R"({
+  "accountId": "USR-9876",
+  "balance": 10250.75,
+  "leverage": 100,
+  "isActive": true,
+  "contact": {
+    "email": "trader@example.com",
+    "phone": null
+  },
+  "openPositions": [
+    {"ticket": 1, "symbol": "EURUSD", "profit": 150.25},
+    {"ticket": 2, "symbol": "GBPUSD", "profit": -75.50}
+  ]
+})";
+
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(account_info_str);
+MQL5_Json::JsonNode root = doc.GetRoot();
+
+// 读取基本类型
+double balance = root["balance"].AsDouble(0.0);
+
+// 读取嵌套对象中的值
+string email = root["contact"]["email"].AsString("N/A");
+
+// 检查节点是否存在或为null
+if (root["contact"]["phone"].IsNull()) {
+    Print("Phone number is not provided.");
+}
+
+// 遍历数组
+double total_profit = 0;
+MQL5_Json::JsonNode positions = root["openPositions"];
+if (positions.IsArray()) {
+    for (int i = 0; i < positions.Size(); i++) {
+        total_profit += positions[i]["profit"].AsDouble();
+    }
+}
+PrintFormat("Account %s | Balance: %.2f | Total Floating Profit: %.2f", 
+    root["accountId"].AsString(), balance, total_profit);
+```
+
+---
+
+#### **1.4 修改与更新数据**
+
+**示例: 动态调整一个策略配置**
+
+```mql5
+string config_str = "{\"risk_percent\": 1.0, \"symbols\": [\"EURUSD\", \"USDJPY\"]}";
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(config_str);
+MQL5_Json::JsonNode root = doc.GetRoot();
+
+// 1. 更新一个值
+root.Set("risk_percent", 1.5);
+
+// 2. 向数组中添加一个新元素
+root["symbols"].Add("AUDUSD");
+
+// 3. 添加一个全新的键值对
+root.Set("comment", "Optimized on 2025.08.29");
+
+// 4. 从数组中移除一个元素 (假设要移除 "USDJPY")
+MQL5_Json::JsonNode symbols_node = root["symbols"];
+for(int i = symbols_node.Size() - 1; i >= 0; i--) {
+    if(symbols_node[i].AsString() == "USDJPY") {
+        symbols_node.Remove(i);
+        break;
+    }
+}
+Print(doc.ToString(true));
+```
+
+---
+
+#### **1.5 序列化 (将JSON转为字符串)**
+
+**示例: 创建并以不同格式导出JSON**
+
+```mql5
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonNewObject();
+doc.GetRoot().Set("user", "test");
+doc.GetRoot().SetObject("data").Set("value", 100);
+
+// 紧凑格式: 适合通过网络API传输，体积最小
+string compact_string = doc.ToString(false);
+Print("Compact String: ", compact_string);
+
+// 格式化: 适合存入配置文件，或用于调试，便于阅读
+string pretty_string = doc.ToString(true);
+Print("Pretty String:\n", pretty_string);
+```
+
+---
+
+### **Part 2: 高级查询与操作**
+
+#### **2.1 JSONPath 强大查询**
+
+**示例: 从一个复杂的财经新闻API响应中提取关键信息**
+
+```mql5
+#include <JsonLib.mqh> // JsonQuery 命名空间位于此文件中
+
+void OnStart()
+{
+    string news_api_response = R"({
+      "provider": "NewsFeed Inc.",
+      "articles": [
+        { "id": 101, "headline": "Fed holds rates steady", "impact": "High", "region": "USA" },
+        { "id": 102, "headline": "ECB hints at future cuts", "impact": "High", "region": "EU" },
+        { "id": 103, "headline": "Tech earnings surprise", "impact": "Low", "region": "USA" }
+      ]
+    })";
+
+    MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(news_api_response);
     MQL5_Json::JsonNode root = doc.GetRoot();
-    string name = root.Get("name").AsString("Unknown");
-    long   age  = root.Get("age").AsInt(0);
-    bool   isStudent = root["isStudent"].AsBool(true); // 也可以使用 [] 操作符
+    JsonError error;
 
-    PrintFormat("Name: %s, Age: %d, Is Student: %s", name, age, isStudent ? "Yes" : "No");
+    // 查询所有“High” impact新闻的标题
+    MQL5_Json::JsonNode high_impact_news[];
+    string path = "$.articles[?(@.impact == 'High')].headline";
+    int count = MQL5_Json::JsonQuery::SelectNodes(root, path, high_impact_news, error);
 
-    // 4. 创建一个新的JSON文档
-    MQL5_Json::JsonDocument newDoc = MQL5_Json::JsonNewObject();
-    newDoc.GetRoot().Set("status", "OK");
-    newDoc.GetRoot().Set("code", 200);
-
-    // 5. 序列化新JSON (美化格式)
-    Print("新创建的JSON:\n", newDoc.ToString(true));
+    Print("--- High Impact News Headlines ---");
+    for (int i=0; i<count; i++) Print("> ", high_impact_news[i].AsString());
 }
+```
 
+#### **2.2 JSON Pointer (RFC 6901) 精准定位**
 
-## 💡 核心概念与最佳实践
+当您清楚地知道目标元素的确切路径时，JSON Pointer 是一种比JSONPath更轻量、更快的访问方式。
 
-> **警告：** 为了确保您的项目能够顺利集成并稳定运行，请务必遵守以下规则。
+```mql5
+string text = R"({
+  "account": { "details": { "user_id": 12345 }},
+  "orders": [ {"id": "A1"}, {"id": "B2"} ]
+})";
 
-1.  **命名空间 (至关重要!)**
-    -   本库的所有类和函数都封装在 `MQL5_Json` 命名空间中。
-    -   在 `.mqh` 头文件中，**必须**使用完全限定名称，例如 `MQL5_Json::JsonDocument`。否则将导致 `'JsonNode' - declaration without type` 编译错误。
-    -   **正确示例**: `MQL5_Json::JsonDocument doc = MQL5_Json::JsonNewObject();`
+MQL5_Json::JsonNode root = MQL5_Json::JsonParse(text).GetRoot();
+MQL5_Json::JsonNode user_id = root.QueryPointer("/account/details/user_id");
+MQL5_Json::JsonNode second_order_id = root.QueryPointer("/orders/1/id");
 
-2.  **对象参数通过引用传递**
-    -   MQL5语言规定，所有类对象在作为函数参数传递时，**必须**通过引用 (`&`) 传递。
-    -   **正确示例**: `void myFunction(MQL5_Json::JsonNode &node);`
-    -   否则将导致 `'objects are passed by reference only'` 编译错误。
+PrintFormat("User ID: %d, Second Order ID: %s", (int)user_id.AsInt(), second_order_id.AsString());
+```
 
-3.  **内存与生命周期**
-    -   `JsonDocument` **拥有**数据，`JsonNode` 只是一个**视图**或引用。
-    -   如果一个 `JsonDocument` 对象被销毁，其下所有的 `JsonNode` 都会失效。
+---
 
-## 📖 高级用法示例
+#### **2.3 深度合并 (Merge) 与 RFC 7396 补丁 (Patch)**
 
-<details>
-<summary><b>🔹 创建复杂的JSON对象</b></summary>
+**示例: 深度合并 (`Merge`)** - 合并默认配置和用户自定义配置。
 
-mql5
-void CreateComplexJson()
+```mql5
+string default_cfg_str = "{\"settings\": {\"sound_alerts\": true}, \"risk_level\": 1}";
+MQL5_Json::JsonDocument default_doc = MQL5_Json::JsonParse(default_cfg_str);
+string user_cfg_str = "{\"settings\": {\"sound_alerts\": false}, \"user_id\": \"my_user\"}";
+MQL5_Json::JsonDocument user_doc = MQL5_Json::JsonParse(user_cfg_str);
+
+MQL5_Json::JsonDocument final_doc = MQL5_Json::JsonQuery::Merge(default_doc, user_doc);
+Print(final_doc.ToString(true));
+```
+
+**示例: RFC 7396 补丁 (`Patch`)** - 更新和删除字段。
+
+```mql5
+string base_str = "{\"lot_size\": 0.1, \"magic_number\": 123, \"comment\": \"active\"}";
+MQL5_Json::JsonDocument base_doc = MQL5_Json::JsonParse(base_str);
+string patch_str = "{\"magic_number\": 456, \"comment\": null}"; // null表示删除
+MQL5_Json::JsonDocument patch_doc = MQL5_Json::JsonParse(patch_str);
+base_doc.Patch(patch_doc);
+Print(base_doc.ToString(true));
+```
+
+---
+
+### **Part 3: 高级编程模式**
+
+#### **3.1 数据绑定 (`JsonMapper`)**
+
+**示例: 将一个完整的交易策略配置映射到一个MQL5类中，包含嵌套对象和数组。**
+
+```mql5
+#include <JsonLib.mqh>
+
+// --- 子对象类: 指标设置 ---
+class CIndicatorSettings : public MQL5_Json::IJsonSerializable { /* ... (定义见上一版示例) ... */ };
+// --- 主配置类 ---
+class CStrategyConfig : public MQL5_Json::IJsonSerializable { /* ... (定义见上一版示例) ... */ };
+
+// --- 使用 Mapper 进行解耦和类型安全的操作 ---
+void OnStart()
 {
-   MQL5_Json::JsonDocument doc = MQL5_Json::JsonNewObject();
-   MQL5_Json::JsonNode root = doc.GetRoot();
-
-   root.Set("product_id", 12345);
-   root.Set("available", true);
-
-   // 创建一个子对象
-   MQL5_Json::JsonNode specs = doc.CreateObjectNode();
-   specs.Set("color", "black");
-   specs.Set("weight_kg", 1.25);
-   root.Set("specifications", specs);
-
-   // 创建一个数组
-   MQL5_Json::JsonNode tags = doc.CreateArrayNode();
-   tags.Add("electronics");
-   tags.Add("gadget");
-   root.Set("tags", tags);
-
-   Print("创建的JSON:\n", doc.ToString(true));
+    string config_json = /* ... (一个复杂的配置JSON字符串) ... */;
+    CStrategyConfig config;
+    if (MQL5_Json::JsonMapper::Deserialize(MQL5_Json::JsonParse(config_json).GetRoot(), config))
+    {
+        Print("Configuration loaded successfully into CStrategyConfig object.");
+    }
 }
+```
 
-</details>
+#### **3.2 流式解析 (SAX API): 处理超大JSON文件**
 
-<details>
-<summary><b>🔹 使用JSON Pointer和JSONPath查询数据</b></summary>
+**示例: 从一个巨大的交易日志流中，统计总盈利和亏损交易的次数。**
 
-mql5
-void QueryData()
+```mql5
+// 1. 定义一个自定义事件处理器
+class CTradeLogHandler : public MQL5_Json::IJsonStreamHandler
+{ /* ... (定义见上一版示例) ... */ };
+
+// 2. 使用流式解析器
+void OnStart()
 {
-   string text = "{ \"store\": { \"book\": [ { \"title\": \"MQL5 Basics\" }, { \"title\": \"Advanced Algos\" } ] } }";
-   MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(text, {}, {});
-   if(!doc.IsValid()) return;
-   
-   MQL5_Json::JsonNode root = doc.GetRoot();
-
-   // 1. 使用 JSON Pointer (RFC 6901) 精确获取单个节点
-   string first_title = root.Query("/store/book/0/title").AsString();
-   Print("JSON Pointer 结果: ", first_title);
-
-   // 2. 使用 JSONPath 批量查询符合条件的节点
-   MQL5_Json::JsonNode nodes[];
-   MQL5_Json::JsonError error;
-   int count = root.SelectNodes(nodes, "$.store.book[*].title", error);
-   
-   PrintFormat("JSONPath 查询到 %d 个标题:", count);
-   for(int i = 0; i < count; i++)
-   {
-      Print(i, ": ", nodes[i].AsString());
-   }
+    // 假设 huge_log_stream 来自一个大文件或网络响应
+    string huge_log_stream = "{\"trades\": [{\"profit\": 10}, {\"profit\": -5}, ...]}";
+    CTradeLogHandler handler;
+    JsonError error;
+    if (MQL5_Json::JsonStreamParse(huge_log_stream, GetPointer(handler), error))
+    {
+        PrintFormat("Analysis complete. Profitable trades: %d, Losing trades: %d", 
+            handler.m_profitable_trades, handler.m_losing_trades);
+    }
 }
+```
 
-</details>
+---
 
-<details>
-<summary><b>🔹 流式解析大文件 (低内存占用) - 完整实现</b></summary>
+## 错误处理
 
-mql5
-// 定义一个处理JSON事件的处理器类，完整实现 IJsonStreamHandler 接口
-class CTradeCounter : public MQL5_Json::IJsonStreamHandler
+**示例：捕获并解读一个典型的JSON语法错误**
+
+```mql5
+string bad_json = "{\"symbol\": \"EURUSD\" \"price\": 1.07}"; // 缺少逗号
+MQL5_Json::JsonError error;
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(bad_json, error);
+
+if (!doc.IsValid())
 {
-private:
-   int m_count;
-   bool m_is_symbol_key; // 状态变量，用于跟踪前一个key是否为"symbol"
-
-public:
-   // 构造函数
-   CTradeCounter() : m_count(0), m_is_symbol_key(false) {}
-   
-   // 获取最终计数结果
-   int GetCount() const { return m_count; }
-
-   //--- IJsonStreamHandler 接口的完整实现 ---
-   
-   bool OnStartDocument() override 
-   { 
-      // 在文档开始时重置计数器和状态
-      m_count = 0; 
-      m_is_symbol_key = false; 
-      return true; // 返回true继续解析
-   }
-   
-   bool OnEndDocument() override { return true; } // 文档结束，无特殊操作
-   
-   bool OnStartObject() override { return true; } // 遇到 '{'
-   
-   bool OnEndObject() override { return true; }   // 遇到 '}'
-   
-   bool OnStartArray() override { return true; }  // 遇到 '['
-   
-   bool OnEndArray() override { return true; }    // 遇到 ']'
-   
-   bool OnKey(const string &key) override 
-   {
-      // 当解析到一个键时，检查它是否是我们关心的 "symbol"
-      m_is_symbol_key = (key == "symbol");
-      return true;
-   }
-   
-   bool OnString(const string &value) override
-   {
-      // 当解析到一个字符串值时，检查前一个键是否是"symbol"
-      // 并且该字符串的值是否为 "EURUSD"
-      if(m_is_symbol_key && value == "EURUSD") 
-      {
-         m_count++; // 计数器加一
-      }
-      m_is_symbol_key = false; // 处理完后重置状态，避免影响后续解析
-      return true;
-   }
-   
-   bool OnNumber(const double value) override 
-   { 
-      m_is_symbol_key = false; // 如果键后面跟的不是字符串，重置状态
-      return true; 
-   }
-   
-   bool OnBool(const bool value) override 
-   { 
-      m_is_symbol_key = false;
-      return true; 
-   }
-   
-   bool OnNull() override 
-   { 
-      m_is_symbol_key = false;
-      return true; 
-   }
-};
-
-void TestStreamParser()
-{
-   // 模拟一个非常大的JSON文件内容
-   string big_json_content = "[{\"symbol\":\"EURUSD\",\"price\":1.1}, {\"symbol\":\"GBPUSD\"}, {\"symbol\":\"EURUSD\",\"price\":1.2}]";
-   
-   MQL5_Json::JsonStreamParser parser;
-   CTradeCounter *handler = new CTradeCounter();
-   MQL5_Json::JsonError error;
-
-   // 执行流式解析
-   if(parser.Parse(big_json_content, handler, error))
-   {
-      Print("流式解析找到 EURUSD 交易数量: ", handler.GetCount());
-   }
-   else
-   {
-      Print("流式解析失败: ", error.ToString());
-   }
-   
-   delete handler; // 不要忘记释放内存
+    Print("--- JSON Parse Error Report ---");
+    Print("Message:    ", error.message);
+    Print("Location:   ", "Line ", error.line, ", Col ", error.column);
+    Print("Context:    ", error.context);
+    Print("\nFull Report:\n", error.ToString());
 }
+```
 
-</details>
+---
 
-## ✍️ 作者
+## 贡献
 
-**ding9736**
+本库由 **ding9736** 开发和维护。我们欢迎社区的贡献，无论是问题反馈还是代码提交。
 
--   [MQL5 Profile](https://www.mql5.com/en/users/ding9736)
+* **MQL5 Profile**: [https://www.mql5.com/en/users/ding9736](https://www.mql5.com/en/users/ding9736)
+* **GitHub Repository**: [https://github.com/ding9736/MQL5-JsonLib](https://github.com/ding9736/MQL5-JsonLib)
 
-## 📜 许可
+---
 
-该项目根据 [MIT 许可证](LICENSE) 授权。
+## License
+
+[MIT License](LICENSE)
+
+```
+MIT License
+
+Copyright (c) 2025 ding9736
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

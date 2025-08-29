@@ -1,265 +1,458 @@
-# MQL5 JSON Library (JsonLib) v10.0
+# MQL5-JsonLib: A Professional-Grade JSON Library for MQL5
 
+![Version](https://img.shields.io/badge/version-11.0-blue.svg) ![License](https://img.shields.io/badge/license-MIT-green.svg) ![Platform](https://img.shields.io/badge/platform-MetaTrader%205-orange.svg)
 
-A powerful, feature-rich library designed specifically for parsing, manipulating, and serializing JSON data within the MQL5 environment. It provides a simple and intuitive Document Object Model (DOM) API, aiming to make the JSON handling experience in MQL5 comparable to modern programming languages like JavaScript and Python.
+**MQL5-JsonLib** is a comprehensive, high-performance, and robust JSON solution designed specifically for the MQL5 language. It provides a full suite of professional-grade features, from simple DOM parsing and data binding to complex SAX-style stream processing and powerful JSONPath queries, aiming to equip MQL5 developers with a thoroughly modern tool for data exchange and manipulation.
 
-This library is capable of handling a wide range of tasks, from reading simple EA configurations to complex real-time data exchange between systems.
+Whether you need to interface with web APIs for market data, manage complex EA/indicator configurations, or exchange information efficiently between different systems, JsonLib offers a stable, high-performance, and exceptionally easy-to-use interface.
 
-## ✨ Features
+## Core Features
 
--   **Powerful Parsing & Creation**:
-    -   Reliably parse JSON from strings or files (`JsonParse`, `JsonFromFile`).
-    -   Supports **JSON5** features like comments and trailing commas for enhanced compatibility.
-    -   Build JSON from scratch with a concise API (`JsonNewObject`, `JsonNewArray`).
--   **Intuitive Data Manipulation**:
-    -   Access data like a JS object or Python dictionary using keys (`node["key"]`) and indices (`node[0]`).
-    -   Safe type casting (`AsInt(defaultValue)`, `AsString(defaultValue)`) prevents crashes from type mismatches or non-existent paths.
-    -   Freely add, update, or remove JSON elements (`Set`, `Add`, `Remove`).
--   **Advanced Querying & Processing**:
-    -   Built-in **JSON Pointer** (`.Query()`) and **JSONPath** (`.SelectNodes()`) query engines to easily extract data from complex structures.
-    -   Includes a **Stream Parser** (`JsonStreamParser`) for processing gigabyte-scale JSON files with extremely low memory usage.
-    -   Offers advanced utilities like document cloning (`.Clone()`) and deep merging (`JsonMerge`).
--   **Safe & Robust**:
-    -   **Automatic Memory Management** (RAII), where `JsonDocument` manages the lifecycle of all nodes, fundamentally eliminating memory leaks.
-    -   Cross-document operations automatically perform deep copies, preventing dangling pointers and data corruption.
-    -   Detailed error reporting, including line and column numbers, for rapid debugging.
+* ⚡️ **Dual-Engine Parsing**:
+  * `ENGINE_HIGH_SPEED`: An ultra-fast parser optimized for standard RFC 8259-compliant JSON.
+  * `ENGINE_STANDARD`: A feature-complete stream parser that supports non-standard features like comments and trailing commas.
+  * `ENGINE_AUTO` (Default): Intelligently switches between engines to provide optimal performance while ensuring compatibility.
+* 🌳 **Complete Document Object Model (DOM) API**: Easily load, create, access, and modify JSON documents as if they were native MQL5 objects.
+* 🌊 **Efficient Stream-based (SAX) API**: Process gigabyte-scale JSON files with minimal memory footprint, ideal for handling large data streams.
+* 🔎 **Powerful Data Queries**:
+  * **JSONPath**: Effortlessly query and extract data from complex JSON structures using an XPath-like syntax.
+  * **JSON Pointer (RFC 6901)**: Provides lightweight and fast pinpoint element access.
+* 💾 **Seamless File I/O**: Efficiently parse JSON directly from a file stream, or save in-memory JSON documents to files in either pretty or compact format.
+* 🔗 **Robust Data Binding (`JsonMapper`)**: Enables automatic, bidirectional mapping between MQL5 custom classes and JSON nodes, significantly improving code structure and maintainability.
+* 🛠️ **Advanced Document Operations**:
+  * **Deep Merge**: Recursively merge two JSON objects, a powerful tool for aggregating configurations.
+  * **RFC 7396 Patch**: Supports the standardized JSON Patch protocol for performing precise, partial updates to JSON documents.
+* ⚠️ **Robust Error Handling**: Provides detailed error messages, including line number, column, and context, to help developers quickly locate and resolve issues.
 
-## 📦 Installation
+## Performance Highlights
 
-1.  Download the source code from this repository.
-2.  Copy the entire `Include/MQL5-Json` folder into your MQL5 data directory, under `\MQL5\Include\`.
-3.  In your code, include the main header file:
+This library has undergone rigorous performance testing. Under the MetaTrader 5 Build `5233` environment, its throughput when handling JSON files of various sizes is exceptional:
 
-    mql5
-    #include <MQL5-Json/JsonLib.mqh>
+| File Size (Actual) | JsonFromFile (Stream) | JsonParse (Standard Mem) | JsonParse (Rapid Mem) |
+|:------------------ |:--------------------- |:------------------------ |:--------------------- |
+| **7.6 KB**         | `23.49 MB/s`          | `30.93 MB/s`             | **`34.37 MB/s`**      |
+| **62.5 KB**        | `28.42 MB/s`          | `31.81 MB/s`             | **`35.57 MB/s`**      |
+| **1.0 MB**         | `9.80 MB/s`           | `9.45 MB/s`              | **`9.91 MB/s`**       |
+| **15.4 MB**        | `0.66 MB/s`           | `0.67 MB/s`              | **`0.68 MB/s`**       |
+
+> **Conclusion**: For small to medium-sized files (<1MB), the high-speed engine demonstrates a significant performance advantage. For very large files, stream-based parsing (`JsonFromFile`) delivers stable, high performance while guaranteeing minimal memory usage.
+
+## Installation Guide
+
+1. Copy the `JsonLib.mqh` file and the entire `Core` folder into your MQL5 `Include` directory (typically located at `MQL5/Include/`).
+2. In your EA, script, or indicator code, simply include the main header file to get started:
    
+   ```mql5
+   #include <JsonLib.mqh>
+   ```
 
-## 🚀 Quick Start
+## Quick Start: Master the Basics in 5 Minutes
 
-Here is a simple example that demonstrates how to parse a string, access data, create a new JSON document, and serialize it.
+The example below will walk you through the entire process of parsing JSON, reading data, modifying it, and printing the result.
 
 ```mql5
-#include <MQL5-Json/JsonLib.mqh>
+#include <JsonLib.mqh>
 
 void OnStart()
 {
-    string jsonText = "{ \"name\": \"John Doe\", \"age\": 30, \"isStudent\": false, \"courses\": [\"MQL5\", \"C++\"] }";
+    // 1. Imagine this is market data from a web API
+    string market_data_str = R"({
+      "symbol": "EURUSD",
+      "timestamp": 1672531200,
+      "bid": 1.0705,
+      "ask": 1.0708,
+      "tradeable": true,
+      "levels": [1.0700, 1.0800]
+    })";
 
-    // 1. Parse the JSON string (must use the MQL5_Json:: namespace prefix)
+    // 2. Parse the JSON string
     MQL5_Json::JsonError error;
-    MQL5_Json::JsonParseOptions options;
-    MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(jsonText, error, options);
+    MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(market_data_str, error);
 
-    // 2. Always check if the document is valid after parsing
-    if (!doc.IsValid())
+    // 3. Validate and access the data
+    if(doc.IsValid())
     {
-        Print("Failed to parse JSON: ", error.ToString());
-        return;
+        MQL5_Json::JsonNode root = doc.GetRoot();
+
+        // Safely read data using the [] operator and As...() methods
+        string symbol = root["symbol"].AsString("N/A");
+        double spread = root["ask"].AsDouble() - root["bid"].AsDouble();
+
+        PrintFormat("Symbol: %s, Spread: %.5f", symbol, spread);
+
+        // 4. Modify the data
+        root.Set("tradeable", false); // Let's assume we pause trading for this pair
+        root.SetObject("metadata").Set("source", "My EA"); // Add a new child object
+
+        // 5. Convert the modified document back to a formatted string and print it
+        Print("\n--- Modified JSON ---");
+        Print(doc.ToString(true));
     }
+    else
+    {
+        Print("JSON parsing failed: ", error.ToString());
+    }
+}
+```
 
-    // 3. Access the data
+## Authoritative API Guide
+
+---
+
+### **Part 1: Core DOM API Usage**
+
+#### **1.1 Parsing JSON**
+
+**Example 1: Parsing from a String (with non-standard format support)**
+
+```mql5
+// Assume the JSON comes from a configuration file that allows comments
+string text_with_comments = R"({
+    "strategy_id": "MA_Cross_v2", // Strategy identifier
+    "magic_number": 654321,
+})";
+
+MQL5_Json::JsonError error;
+MQL5_Json::JsonParseOptions options;
+options.engine = MQL5_Json::ENGINE_STANDARD;     // Must use the standard engine for comment support
+options.allow_comments = true;                  // Allow comments
+options.allow_trailing_commas = true;           // Also allow trailing commas
+
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(text_with_comments, error, options);
+Print("Magic Number: ", doc["magic_number"].AsInt());
+```
+
+**Example 2: Parsing from a File Efficiently (Recommended)**
+This method is extremely memory-efficient and is the best choice for reading configurations or data files.
+
+```mql5
+string filename = "ea_settings.json";
+// (Code to write the file is omitted here...)
+
+MQL5_Json::JsonError error;
+MQL5_Json::JsonDocument config_doc = MQL5_Json::JsonFromFile(filename, error);
+
+if(config_doc.IsValid()) {
+    Print("Successfully loaded config from ", filename);
+}
+```
+
+---
+
+#### **1.2 Creating New JSON Documents**
+
+**Example: Building a complete EA trading parameter configuration from scratch**
+
+```mql5
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonNewObject();
+MQL5_Json::JsonNode root = doc.GetRoot();
+
+root.Set("ea_name", "Pro RSI Trader");
+root.Set("version", 1.2);
+root.Set("enabled", true);
+
+// Add a child object for basic parameters
+MQL5_Json::JsonNode params = root.SetObject("parameters");
+params.Set("rsi_period", 14);
+params.Set("stop_loss_pips", 50);
+params.Set("take_profit_pips", 100);
+
+// Add a child object for risk management settings
+MQL5_Json::JsonNode risk = root.SetObject("risk_management");
+risk.Set("max_drawdown_percent", 20.0);
+risk.Set("lot_sizing_method", "fixed");
+risk.Set("fixed_lot_size", 0.02);
+
+// Add an array of allowed trading sessions
+MQL5_Json::JsonNode trading_sessions = root.SetArray("trading_sessions");
+trading_sessions.Add("London");
+trading_sessions.Add("New_York");
+
+Print(doc.ToString(true));
+```
+
+---
+
+#### **1.3 Accessing and Reading Data**
+
+**Example: Parsing a multi-level account information JSON**
+
+```mql5
+string account_info_str = R"({
+  "accountId": "USR-9876", "balance": 10250.75, "leverage": 100, "isActive": true,
+  "contact": { "email": "trader@example.com", "phone": null },
+  "openPositions": [
+    {"ticket": 1, "symbol": "EURUSD", "profit": 150.25},
+    {"ticket": 2, "symbol": "GBPUSD", "profit": -75.50}
+  ]
+})";
+
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(account_info_str);
+MQL5_Json::JsonNode root = doc.GetRoot();
+
+// Read primitive types
+double balance = root["balance"].AsDouble(0.0);
+
+// Read a value from a nested object
+string email = root["contact"]["email"].AsString("N/A");
+
+// Check if a node is null or non-existent
+if (root["contact"]["phone"].IsNull()) {
+    Print("Phone number is not provided.");
+}
+
+// Iterate over an array
+double total_profit = 0;
+MQL5_Json::JsonNode positions = root["openPositions"];
+if (positions.IsArray()) {
+    for (int i = 0; i < positions.Size(); i++) {
+        total_profit += positions[i]["profit"].AsDouble();
+    }
+}
+PrintFormat("Account %s | Balance: %.2f | Total Floating Profit: %.2f", 
+    root["accountId"].AsString(), balance, total_profit);
+```
+
+---
+
+#### **1.4 Modifying and Updating Data**
+
+**Example: Dynamically adjusting a strategy configuration**
+
+```mql5
+string config_str = "{\"risk_percent\": 1.0, \"symbols\": [\"EURUSD\", \"USDJPY\"]}";
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(config_str);
+MQL5_Json::JsonNode root = doc.GetRoot();
+
+// 1. Update an existing value
+root.Set("risk_percent", 1.5);
+
+// 2. Add a new element to an existing array
+root["symbols"].Add("AUDUSD");
+
+// 3. Add a completely new key-value pair
+root.Set("comment", "Optimized on 2025.08.29");
+
+// 4. Remove an element from an array (e.g., remove "USDJPY")
+MQL5_Json::JsonNode symbols_node = root["symbols"];
+for(int i = symbols_node.Size() - 1; i >= 0; i--) {
+    if(symbols_node[i].AsString() == "USDJPY") {
+        symbols_node.Remove(i);
+        break;
+    }
+}
+Print(doc.ToString(true));
+```
+
+---
+
+#### **1.5 Serialization (Converting JSON to String)**
+
+**Example: Creating and exporting JSON in different formats**
+
+```mql5
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonNewObject();
+doc.GetRoot().Set("user", "test");
+doc.GetRoot().SetObject("data").Set("value", 100);
+
+// Compact format: ideal for network transmission, minimum size
+string compact_string = doc.ToString(false);
+Print("Compact String: ", compact_string);
+
+// Pretty format: ideal for configuration files or debugging, human-readable
+string pretty_string = doc.ToString(true);
+Print("Pretty String:\n", pretty_string);
+```
+
+---
+
+### **Part 2: Advanced Queries and Operations**
+
+#### **2.1 Powerful Queries with JSONPath**
+
+**Example: Extracting key information from a complex financial news API response**
+
+```mql5
+#include <JsonLib.mqh> // The JsonQuery namespace is available here
+
+void OnStart()
+{
+    string news_api_response = R"({
+      "provider": "NewsFeed Inc.", "articles": [
+        { "id": 101, "headline": "Fed holds rates steady", "impact": "High", "region": "USA" },
+        { "id": 102, "headline": "ECB hints at future cuts", "impact": "High", "region": "EU" },
+        { "id": 103, "headline": "Tech earnings surprise", "impact": "Low", "region": "USA" }
+      ]
+    })";
+
+    MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(news_api_response);
     MQL5_Json::JsonNode root = doc.GetRoot();
-    string name = root.Get("name").AsString("Unknown");
-    long   age  = root.Get("age").AsInt(0);
-    bool   isStudent = root["isStudent"].AsBool(true); // The [] operator can also be used
+    JsonError error;
 
-    PrintFormat("Name: %s, Age: %d, Is Student: %s", name, age, isStudent ? "Yes" : "No");
+    // Query for the headlines of all "High" impact news
+    MQL5_Json::JsonNode high_impact_news[];
+    string path = "$.articles[?(@.impact == 'High')].headline";
+    int count = MQL5_Json::JsonQuery::SelectNodes(root, path, high_impact_news, error);
 
-    // 4. Create a new JSON document
-    MQL5_Json::JsonDocument newDoc = MQL5_Json::JsonNewObject();
-    newDoc.GetRoot().Set("status", "OK");
-    newDoc.GetRoot().Set("code", 200);
-
-    // 5. Serialize the new JSON (in pretty format)
-    Print("Newly created JSON:\n", newDoc.ToString(true));
+    Print("--- High Impact News Headlines ---");
+    for (int i=0; i<count; i++) Print("> ", high_impact_news[i].AsString());
 }
+```
 
+#### **2.2 Pinpoint Access with JSON Pointer (RFC 6901)**
 
-## 💡 Core Concepts & Best Practices
+When you know the exact path to an element, JSON Pointer is a more lightweight and faster alternative to JSONPath.
 
-> **Warning:** To ensure your project integrates smoothly and runs stably, you must adhere to the following rules.
+```mql5
+string text = R"({"account": {"details": {"user_id": 12345}}, "orders": [{"id": "A1"}, {"id": "B2"}]})";
 
-1.  **Namespace (Crucial!)**
-    -   All classes and functions in this library are encapsulated within the `MQL5_Json` namespace.
-    -   In `.mqh` header files, you **must** use fully qualified names, e.g., `MQL5_Json::JsonDocument`. Failure to do so will result in a `'JsonNode' - declaration without type` compilation error.
-    -   **Correct Example**: `MQL5_Json::JsonDocument doc = MQL5_Json::JsonNewObject();`
+MQL5_Json::JsonNode root = MQL5_Json::JsonParse(text).GetRoot();
 
-2.  **Pass Objects by Reference**
-    -   The MQL5 language mandates that all class objects **must** be passed by reference (`&`) when used as function parameters.
-    -   **Correct Example**: `void myFunction(MQL5_Json::JsonNode &node);`
-    -   Failure to do so will result in an `'objects are passed by reference only'` compilation error.
+// Paths must start with '/' and use 0-based array indices
+MQL5_Json::JsonNode user_id = root.QueryPointer("/account/details/user_id");
+MQL5_Json::JsonNode second_order_id = root.QueryPointer("/orders/1/id");
 
-3.  **Memory & Lifecycle**
-    -   `JsonDocument` **owns** the data; `JsonNode` is just a **view** or a reference.
-    -   If a `JsonDocument` object is destroyed, all of its associated `JsonNode`s will become invalid.
+PrintFormat("User ID: %d, Second Order ID: %s", (int)user_id.AsInt(), second_order_id.AsString());
+```
 
-## 📖 Advanced Usage Examples
+---
 
-<details>
-<summary><b>🔹 Creating a Complex JSON Object</b></summary>
+#### **2.3 Deep Merge vs. RFC 7396 Patch**
 
-mql5
-void CreateComplexJson()
+**Scenario: Merging default settings with user-defined overrides**
+
+**Example: Deep Merge**
+
+```mql5
+string default_cfg_str = "{\"settings\": {\"sound_alerts\": true}, \"risk_level\": 1}";
+MQL5_Json::JsonDocument default_doc = MQL5_Json::JsonParse(default_cfg_str);
+string user_cfg_str = "{\"settings\": {\"sound_alerts\": false}, \"user_id\": \"my_user\"}";
+MQL5_Json::JsonDocument user_doc = MQL5_Json::JsonParse(user_cfg_str);
+
+// User settings will override defaults and add new fields
+MQL5_Json::JsonDocument final_doc = MQL5_Json::JsonQuery::Merge(default_doc, user_doc);
+Print(final_doc.ToString(true));
+```
+
+**Example: RFC 7396 Patch**
+
+```mql5
+string base_str = "{\"lot_size\": 0.1, \"magic_number\": 123, \"comment\": \"active\"}";
+MQL5_Json::JsonDocument base_doc = MQL5_Json::JsonParse(base_str);
+string patch_str = "{\"magic_number\": 456, \"comment\": null}"; // 'null' value means delete the key
+MQL5_Json::JsonDocument patch_doc = MQL5_Json::JsonParse(patch_str);
+base_doc.Patch(patch_doc); // Apply patch directly
+Print(base_doc.ToString(true));
+```
+
+---
+
+### **Part 3: Advanced Programming Patterns**
+
+#### **3.1 Data Binding with `JsonMapper`**
+
+**Example: Mapping a complete strategy configuration to an MQL5 class, including nested objects and arrays.**
+
+```mql5
+#include <JsonLib.mqh>
+
+// --- Child Object Class: Indicator Settings ---
+class CIndicatorSettings : public MQL5_Json::IJsonSerializable { /* ... definition from previous example ... */ };
+// --- Main Config Class ---
+class CStrategyConfig : public MQL5_Json::IJsonSerializable { /* ... definition from previous example ... */ };
+
+void OnStart()
 {
-   MQL5_Json::JsonDocument doc = MQL5_Json::JsonNewObject();
-   MQL5_Json::JsonNode root = doc.GetRoot();
-
-   root.Set("product_id", 12345);
-   root.Set("available", true);
-
-   // Create a child object
-   MQL5_Json::JsonNode specs = doc.CreateObjectNode();
-   specs.Set("color", "black");
-   specs.Set("weight_kg", 1.25);
-   root.Set("specifications", specs);
-
-   // Create an array
-   MQL5_Json::JsonNode tags = doc.CreateArrayNode();
-   tags.Add("electronics");
-   tags.Add("gadget");
-   root.Set("tags", tags);
-
-   Print("Created JSON:\n", doc.ToString(true));
+    string config_json = /* ... (A complex JSON configuration string) ... */;
+    CStrategyConfig config;
+    if (MQL5_Json::JsonMapper::Deserialize(MQL5_Json::JsonParse(config_json).GetRoot(), config))
+    {
+        // Now you can work with the configuration as a native MQL5 object
+        Print("Configuration loaded successfully into CStrategyConfig object.");
+    }
 }
+```
 
-</details>
+#### **3.2 Stream Processing (SAX API) for Massive JSON Files**
 
-<details>
-<summary><b>🔹 Querying Data with JSON Pointer and JSONPath</b></summary>
+**Example: Tallying profitable and losing trades from a huge trade log stream.**
 
-mql5
-void QueryData()
+```mql5
+// 1. Define a custom event handler
+class CTradeLogHandler : public MQL5_Json::IJsonStreamHandler
+{ /* ... definition from previous example ... */ };
+
+// 2. Use the stream parser
+void OnStart()
 {
-   string text = "{ \"store\": { \"book\": [ { \"title\": \"MQL5 Basics\" }, { \"title\": \"Advanced Algos\" } ] } }";
-   MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(text, {}, {});
-   if(!doc.IsValid()) return;
-   
-   MQL5_Json::JsonNode root = doc.GetRoot();
-
-   // 1. Use JSON Pointer (RFC 6901) for precise, single-node lookups
-   string first_title = root.Query("/store/book/0/title").AsString();
-   Print("JSON Pointer Result: ", first_title);
-
-   // 2. Use JSONPath to query for multiple nodes that match a condition
-   MQL5_Json::JsonNode nodes[];
-   MQL5_Json::JsonError error;
-   int count = root.SelectNodes(nodes, "$.store.book[*].title", error);
-   
-   PrintFormat("JSONPath found %d titles:", count);
-   for(int i = 0; i < count; i++)
-   {
-      Print(i, ": ", nodes[i].AsString());
-   }
+    // huge_log_stream could be coming from a large file or network response
+    string huge_log_stream = "{\"trades\": [{\"profit\": 10}, {\"profit\": -5}, ...]}";
+    CTradeLogHandler handler;
+    JsonError error;
+    if (MQL5_Json::JsonStreamParse(huge_log_stream, GetPointer(handler), error))
+    {
+        PrintFormat("Analysis complete. Profitable trades: %d, Losing trades: %d", 
+            handler.m_profitable_trades, handler.m_losing_trades);
+    }
 }
+```
 
-</details>
+---
 
-<details>
-<summary><b>🔹 Stream Parsing Large Files (Low Memory Usage) - Full Implementation</b></summary>
+## Error Handling
 
-mql5
-// Define a handler class for JSON events that fully implements the IJsonStreamHandler interface
-class CTradeCounter : public MQL5_Json::IJsonStreamHandler
+**Example: Capturing and interpreting a typical JSON syntax error**
+
+```mql5
+string bad_json = "{\"symbol\": \"EURUSD\" \"price\": 1.07}"; // Missing comma
+MQL5_Json::JsonError error;
+MQL5_Json::JsonDocument doc = MQL5_Json::JsonParse(bad_json, error);
+
+if (!doc.IsValid())
 {
-private:
-   int m_count;
-   bool m_is_symbol_key; // State variable to track if the previous key was "symbol"
-
-public:
-   // Constructor
-   CTradeCounter() : m_count(0), m_is_symbol_key(false) {}
-   
-   // Get the final count
-   int GetCount() const { return m_count; }
-
-   //--- Full implementation of the IJsonStreamHandler interface ---
-   
-   bool OnStartDocument() override 
-   { 
-      // Reset counter and state at the start of the document
-      m_count = 0; 
-      m_is_symbol_key = false; 
-      return true; // Return true to continue parsing
-   }
-   
-   bool OnEndDocument() override { return true; } // End of document, no special action
-   
-   bool OnStartObject() override { return true; } // Encountered '{'
-   
-   bool OnEndObject() override { return true; }   // Encountered '}'
-   
-   bool OnStartArray() override { return true; }  // Encountered '['
-   
-   bool OnEndArray() override { return true; }    // Encountered ']'
-   
-   bool OnKey(const string &key) override 
-   {
-      // When a key is parsed, check if it is the "symbol" we care about
-      m_is_symbol_key = (key == "symbol");
-      return true;
-   }
-   
-   bool OnString(const string &value) override
-   {
-      // When a string value is parsed, check if the previous key was "symbol"
-      // and if the string's value is "EURUSD"
-      if(m_is_symbol_key && value == "EURUSD") 
-      {
-         m_count++; // Increment the counter
-      }
-      m_is_symbol_key = false; // Reset state after processing to avoid affecting subsequent elements
-      return true;
-   }
-   
-   bool OnNumber(const double value) override 
-   { 
-      m_is_symbol_key = false; // If a key is followed by a non-string, reset the state
-      return true; 
-   }
-   
-   bool OnBool(const bool value) override 
-   { 
-      m_is_symbol_key = false;
-      return true; 
-   }
-   
-   bool OnNull() override 
-   { 
-      m_is_symbol_key = false;
-      return true; 
-   }
-};
-
-void TestStreamParser()
-{
-   // Simulate the content of a very large JSON file
-   string big_json_content = "[{\"symbol\":\"EURUSD\",\"price\":1.1}, {\"symbol\":\"GBPUSD\"}, {\"symbol\":\"EURUSD\",\"price\":1.2}]";
-   
-   MQL5_Json::JsonStreamParser parser;
-   CTradeCounter *handler = new CTradeCounter();
-   MQL5_Json::JsonError error;
-
-   // Execute the stream parsing
-   if(parser.Parse(big_json_content, handler, error))
-   {
-      Print("Stream parser found EURUSD trade count: ", handler.GetCount());
-   }
-   else
-   {
-      Print("Stream parsing failed: ", error.ToString());
-   }
-   
-   delete handler; // Don't forget to free the memory
+    Print("--- JSON Parse Error Report ---");
+    Print("Message:    ", error.message);
+    Print("Location:   ", "Line ", error.line, ", Col ", error.column);
+    Print("Context:    ", error.context);
+    Print("\nFull Report:\n", error.ToString());
 }
+```
 
-</details>
+---
 
-## ✍️ Author
+## Contribution
 
-**ding9736**
+This library is developed and maintained by **ding9736**. Contributions from the community, whether in the form of issue reports or pull requests, are welcome.
 
--   [MQL5 Profile](https://www.mql5.com/en/users/ding9736)
+* **MQL5 Profile**: [https://www.mql5.com/en/users/ding9736](https://www.mql5.com/en/users/ding9736)
+* **GitHub Repository**: [https://github.com/ding9736/MQL5-JsonLib](https://github.com/ding9736/MQL5-JsonLib)
 
-## 📜 License
+---
 
-This project is licensed under the [MIT License](LICENSE).
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+```
+MIT License
+
+Copyright (c) 2025 ding9736
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
